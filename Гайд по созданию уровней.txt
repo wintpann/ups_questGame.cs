@@ -1,0 +1,146 @@
+1. Сгенерируйте карту в генераторе карт и следуйте инструкциям по добавлению уровня
+2. После добавления полей и методов уровня можно писать код для уровня в добавленном методе Scenes.ваш_уровень_Scene();
+
+Поля для работы с уровнем:
+
+уровень_Elements // здесь хранятся все предварительно созданные элементы уровня (в массиве общего типа Element)
+уровень_Map 	 // здесь хранится карта уровня
+
+Дадим название нашим полям:
+
+MyLevelElements, MyLevelMap
+
+Для добавления новых элементов на карту нужно добавить их в соответствующее поле MyLevelElements
+Сделать это можно двумя способами:
+
+1) Program.MyLevelElements.Add(new Person(25, true, "Говорить", "Джон"));
+
+Person - название элемента (из существующих)
+25 - начальные координаты
+true - возможно ли взаимодействие
+Говорить - описание взаимодействия (то, что будет снизу карты при прохождении мимо элемента если взаимодействие возможно)
+Джон - описание объекта
+
+В случае отсутствия 2 последних параметров, им будут присвоены дефолтные значения
+Если 4 параметр (возможно ли взаимодействие) будет равен "ПОДОБРАТЬ" или "СЪЕСТЬ", ГГ будет нагинаться при взаимодействии с ним
+
+Описание взаимодействия это всего лишь описание, а само взаимодействие нужно будет описывать позже
+(Единственное, что уже прописано: игрок не может ходить через стены (Wall) )
+
+2) Program.MyLevelElements = Element.CreateElements("Bottle", "20", "false", "", "", "Tree", "57", "true", "", "");
+
+Метод Element.CreateElements принимает params массив строк !!!обязательно кратный ПЯТИ!!! (для каждого элемента 5 свойств)
+Метод перезаписывает все объекты, хранящиеся ранее в MyLevelElements
+
+Затем добавить все созданные элементы на карту
+
+MyLevelMap.Add(MyLevelElements); // метод имеет одну перегрузку для добавления одного объекта (пример new Bush(3, false, "", ""));
+
+ПРИ УДАЛЕНИИ И ДОБАВЛЕНИИ ЭЛЕМЕНТОВ В MyLevelElements ОБЯЗАТЕЛЬНО ОБНОВИТЬ КАРТУ
+Program.MyLevelMap.ClearAdd(Program.MyLevelElements);
+
+Затем можно работать с уровнем
+
+Для непрерывного хождения по карте нужен следующий цикл:
+
+public static void MyLevelScene()
+        {
+            while (true)
+            {
+                MyLevelMap.Draw();
+// отрисовывается карта
+
+                Player.MoveOrInteract();
+// обрабатывается нажатие клавиши
+
+                Program.currentElement = Player.ReturnCurrentlement(ref MyLevelElements);
+// в поле Program.currentElement возвращается объект, возле которого сейчас находится ГГ, иначе null
+
+                Program.currentInteractionElement = Player.ReturnCurrentInteractElement(ref Program.currentElement);
+// если с текущим элементом возможно взаимодействие и игрок нажал F, то возвращается этот элемент, иначе null (это поле используется в методе InteractWithElement)
+
+            }
+        }
+
+Также можно описать это все одним методом Player.MakeTurn(Map, List<Element>);
+
+public static void MyLevelScene()
+        {
+            while (true)
+            {
+            	Player.MakeTurn(MyLevelMap, MyLevelElements);
+            }
+        }
+
+
+Допустим у нас есть яблоко, которое можно съесть. Как описать взаимодействие?
+Сначала добавим его:
+
+Program.MyLevelElements[0] = new Fruit(10, true, "", "");
+Program.MyLevelMap.ClearAdd(Program.MyLevelElements);
+
+
+
+
+public static void MyLevelScene()
+        {
+
+        bool eatApple = false; // Цель "съесть яблоко" не достигнута
+
+            while (!eatApple)
+            {
+            	Player.MakeTurn(MyLevelMap, MyLevelElements);
+
+
+// Метод InteractWithElement возвращает true если игрок нажал F возле переданного методу объекта (Program.trainingElements[0] - яблоко)
+                if (Program.InteractWithElement(Program.trainingElements[0]))
+                {
+					// если игрок взаимодействует с яблоком
+
+                    Program.trainingElements[0] = null; // удаляем его из списка
+                    Program.trainingMap.ClearAdd(Program.trainingElements); // обновляем карту
+                    eatApple = true; // цель достигнута
+                }
+
+            }
+        }
+
+Для добавления новых взаимодействий описываем новые аналогичные циклы.
+
+
+
+
+Создание сцены разговора
+
+Создаем 2 массива с одинаковой длиной. В одном записываем вопросы, а в другом соответствующие ответы
+
+string[] questionsPattern = new string[] { "Как дела", "Ты кто", "Пока" };
+string[] answersPattern = new string[] { "Норм", "Я человек", "ExitDialog" }; // ответ ExitDialog обрабатывается как выход из диалога
+
+И вызываем этот метод:
+Player.Dialog(questionsPattern, answersPattern);
+
+Готово
+
+
+Создание сцены торговли
+
+У ГГ есть список предметов в рюкзаке, который можно посмотреть нажав на G
+
+Для торговли с объектом Person, он тоже имеет свой список предметов
+Для начала нужно добавить предметы существующему человеку (Кратно 2: название+цена)
+
+Person person = (Person)Program.trainingElements[0];
+person.Items.AddRange(new string[] { "ФЛЯГА СПИРТА", "10", "НОЖ", "20", "КАРТА МЕСТНОСТИ", "5", "АВТОМАТ ПО ДЕГТЯРЁВУ", "200" });
+
+Создаем сцену разговора. Ответ Trade при выборе создает сцену торговли с текущим Person
+
+string[] questionsPattern = new string[] { "Торговать", "Пока" };
+string[] answersPattern = new string[] { "Trade", "ExitDialog" };
+
+Player.Dialog(questionsPattern, answersPattern);
+
+Готово
+
+
+Чтобы проверить, имеется ли предмет в рюкзаке, есть метод Player.DoIHaveTheItem("НАЗВАНИЕ");
